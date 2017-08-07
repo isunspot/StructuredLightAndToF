@@ -82,6 +82,8 @@ class SadAndDepthAnalyser(object):
                     if (ret == True):
                         new_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
+                        cv2.imshow("Frame", new_frame)
+
                         #new_frame = new_frame[self.__y1:self.__y2, self.__x1:self.__x2]
 
                         # Calculatuing the SAD
@@ -123,7 +125,7 @@ class SadAndDepthAnalyser(object):
 
 filename = "3_oddech.avi"
 filepath_avi = os.path.abspath("C:\\Users\\ImioUser\\Desktop\\K&A\\pylon_spekle\\" + filename)
-filename_save = "sad_results_depth_duo_blizej.h5"
+filename_save = "pylon_spekle_sad.h5"
 
 sad_reader = SadAndDepthAnalyser()
 sad_reader.calc(filepath_avi)

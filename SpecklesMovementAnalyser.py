@@ -65,22 +65,31 @@ class SpecklesReader(object):
         pca = decomposition.PCA(n_components=pca_components).fit(train_data)
         X_out_pca = pca.transform(train_data)
 
-        plt.subplot(2, 2, 1)
+        #plt.subplot(2, 2, 1)
         plt.plot(mean_x, mean_y)
         plt.title("Średni ruch spekli w wejściowych współrzędnych")
+        plt.xlabel("x")
+        plt.ylabel("y")
+        plt.show()
 
-        plt.subplot(2, 2, 2)
+
+        #plt.subplot(2, 2, 2)
         plt.plot(X_out_pca)
-        plt.title("Ruch spekli po PCA")
+        plt.title("Ruch spekli PCA")
+        plt.show()
 
-        plt.subplot(2, 2, 4)
+        #plt.subplot(2, 2, 4)
         plt.plot(angles_in_all_frames)
         plt.title("Zmiany kąta w czasie")
+        plt.ylabel("Kąt [rad]")
+        plt.xlabel("[n]")
+        plt.show()
 
-        plt.subplot(2, 2, 3)
+        #plt.subplot(2, 2, 3)
         plt.plot(speed_in_all_frames)
         plt.title("Zmiany prędkości w czasie")
-
+        plt.ylabel("Prędkość [pxl/n]")
+        plt.xlabel("[n]")
         plt.show()
 
     def show_and_calc_and_save(self, filepath, file_to_save):
@@ -109,6 +118,9 @@ class SpecklesReader(object):
                     break
 
                 frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+                print(type(frame_gray))
+                print(frame_gray)
 
                 # calculate optical flow
                 p1, st, err = cv2.calcOpticalFlowPyrLK(old_gray, frame_gray, p0, None, **self.__lk_params)
@@ -172,7 +184,7 @@ class SpecklesReader(object):
 filename = "4_oddech_przykrywka.avi"
 filepath_avi = os.path.abspath("C:\\Users\\ImioUser\\Desktop\\K&A\\pylon_spekle\\" + filename)
 filename_save = "stereo.h5"
-
 speckles_reader = SpecklesReader()
+
 speckles_reader.show_and_calc_and_save(filepath_avi, filename_save)
 #speckles_reader.show(filename_save)
