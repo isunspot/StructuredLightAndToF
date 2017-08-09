@@ -180,7 +180,9 @@ class SpecklesReader(object):
             print("Coś się nie udało :(")
 
 
-
+#
+# filename = "ramka_100.avi"
+# filepath_avi = os.path.abspath("C:\\Users\\ImioUser\\Desktop\\K&A\\2_kamery_basler_see\\100cm\\" + filename)
 filename = "4_oddech_przykrywka.avi"
 filepath_avi = os.path.abspath("C:\\Users\\ImioUser\\Desktop\\K&A\\pylon_spekle\\" + filename)
 filename_save = "stereo.h5"
