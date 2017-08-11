@@ -197,8 +197,8 @@ class SadAndDepthAnalyser(object):
             plt.show()
 
 
-filename = "ramka_150.avi"
-filepath_avi = os.path.abspath("C:\\Users\\ImioUser\\Desktop\\K&A\\2_kamery_basler_see\\150cm\\L\\BaslerUSB\\" + filename)
+filename = "ramka_100.avi"
+filepath_avi = os.path.abspath("C:\\Users\\ImioUser\\Desktop\\K&A\\2_kamery_basler_see\\100cm\\BaslerUSB\\" + filename)
 
 
 sad_reader = SadAndDepthAnalyser()

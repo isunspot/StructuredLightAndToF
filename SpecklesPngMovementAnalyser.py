@@ -13,6 +13,8 @@ import os
 
 # An input should be an avi file.
 
+
+
 class SpecklesReader(object):
 
     def __init__(self):
