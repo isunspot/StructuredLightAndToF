@@ -22,6 +22,9 @@ class PulseAnalyser(object):
         self.__x1 = None
         self.__x2 = None
 
+        # For perspective transform
+        self.__h = None
+
         # Channels
 
     # TODO get all channels
@@ -36,14 +39,13 @@ class PulseAnalyser(object):
         ret_rgb, frame_rgb1 = self.__cap_rgb.read()
         ret_grey, frame_grey1 = self.__cap_grey.read()
 
+        # Here we select ROI
+        # self.select_roi(frame_rgb1)
+        # cropped_rgb1 = self.crop(frame_rgb1)
 
         print(frame_grey1)
         print(frame_rgb1)
         print("----------")
-
-        # Here we select ROI
-        # self.select_roi(frame_rgb1)
-        # cropped_rgb1 = self.crop(frame_rgb1)
 
         # Mirror grey frame
         mirror_grey1 = cv2.flip(frame_grey1, 1)
@@ -52,9 +54,14 @@ class PulseAnalyser(object):
         cv2.imshow("1", frame_rgb1)
         cv2.imshow("2", mirror_grey1)
         cv2.waitKey()
-        self.transform(frame_rgb1, mirror_grey1)
 
-        # Mirror grey frame
+        self.calculatePerspectiveTransform("out1.png", "out2.png")
+
+
+        ret_rgb, frame_rgb2 = self.__cap_rgb.read()
+        ret_grey, frame_grey2 = self.__cap_grey.read()
+        mirror_grey2 = cv2.flip(frame_grey1, 1)
+        self.transform(frame_rgb2, mirror_grey2)
 
 
     def select_roi(self, frame):
@@ -67,29 +74,12 @@ class PulseAnalyser(object):
         self.__x1 = int(r[0])
         self.__x2 = int(r[0] + r[2])
 
-    def crop(self, frame):
-        return frame[self.__y1:self.__y2, self.__x1:self.__x2]
+    def calculatePerspectiveTransform(self, rgb_in_png, grey_in_png):
+        img1 = cv2.imread(rgb_in_png)
+        img2 = cv2.imread(grey_in_png)
 
-    def transform(self, frame1, frame2):
-        #
-        # grey1 = cv2.cvtColor(frame1, cv2.COLOR_RGB2GRAY)
-        # grey2 = cv2.cvtColor(frame2, cv2.COLOR_RGB2GRAY)
-
-        grey1 = cv2.imread("out1.png")
-        grey2 = cv2.imread("out2.png")
-
-
-        cv2.imshow("1", grey1)
-        cv2.imshow("2", grey2)
-        cv2.waitKey()
-
-        MIN_MATCH_COUNT = 10
-
-        img1 = grey1  # queryImage
-        img2 = grey2 # trainImage
         copy_of_img2 = img2
 
-        # Initiate SIFT detector
         orb = cv2.ORB_create(nfeatures=1000)
 
         # find the keypoints and descriptors with SIFT
@@ -99,28 +89,22 @@ class PulseAnalyser(object):
         kp1, des1 = orb.compute(img1, kp1)
         kp2, des2 = orb.compute(img2, kp2)
 
-        # create BFMatcher object
-        bf = cv2.BFMatcher()#(cv2.NORM_HAMMING, crossCheck=True)
-        # Match descriptors.
+        bf = cv2.BFMatcher()
         matches = bf.knnMatch(des1, des2, k=2)
-        # Sort them in the order of their distance.
-        print(matches)
-
 
         good = []
         for m, n in matches:
             if m.distance < 0.6 * n.distance:
-                good.append(m)#[m]
-
-        ## Homography
-        print(good)
+                good.append(m)  # [m]
 
         src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
         dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
 
-        h, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-        matchesMask = mask.ravel().tolist()
 
+        h, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+        self.__h = h
+
+        # Presentation
         img_in1 = img1
         img_out1 = cv2.warpPerspective(img_in1, h, (img_in1.shape[1], img_in1.shape[0]))
         img_out2 = copy_of_img2
@@ -128,6 +112,22 @@ class PulseAnalyser(object):
         cv2.imshow("1", img_out1)
         cv2.imshow("2", img_out2)
         cv2.waitKey()
+
+    def crop(self, frame):
+        return frame[self.__y1:self.__y2, self.__x1:self.__x2]
+
+    def transform(self, img1, img2):
+
+        img_in1 = img1
+        img_out2 = img2
+
+        img_out1 = cv2.warpPerspective(img_in1, self.__h, (img_in1.shape[1], img_in1.shape[0]))
+
+        cv2.imshow("1", img_out1)
+        cv2.imshow("2", img_out2)
+        cv2.waitKey()
+
+
 #############
 
 wavelength = 500
