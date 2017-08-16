@@ -2,7 +2,25 @@ from matplotlib import pyplot as plt
 import cv2
 import os
 import numpy as np
+from matplotlib import pyplot as plt
+from scipy.signal import blackman
+from scipy.fftpack import fft, ifft
+from sklearn import decomposition
 
+
+def smooth(y, box_pts):
+    y_prev = y[0:box_pts+10]
+    y_end = y[len(y)-box_pts-10]
+    #y_short = y[box_pts + 10: len(y)-box_pts-10]
+
+    box = np.ones(box_pts)/box_pts
+    y_smooth = np.convolve(y, box, mode='same')
+
+    y = y_smooth
+    y[0:box_pts+10] = y_prev
+    y[len(y)-box_pts-10:len(y)] = y_end
+
+    return y
 
 def rgb2gray(rgb):
 
@@ -26,6 +44,10 @@ class PulseAnalyser(object):
         self.__h = None
 
         # Channels
+        self.__C1 = []
+        self.__R = []
+        self.__G = []
+        self.__B = []
 
     # TODO get all channels
     def get_channels(self, avi_rgb_file, avi_grey_file):
@@ -39,29 +61,146 @@ class PulseAnalyser(object):
         ret_rgb, frame_rgb1 = self.__cap_rgb.read()
         ret_grey, frame_grey1 = self.__cap_grey.read()
 
-        # Here we select ROI
-        # self.select_roi(frame_rgb1)
-        # cropped_rgb1 = self.crop(frame_rgb1)
-
-        print(frame_grey1)
-        print(frame_rgb1)
-        print("----------")
-
         # Mirror grey frame
         mirror_grey1 = cv2.flip(frame_grey1, 1)
 
-        # Here we are calculating tranfrom
-        cv2.imshow("1", frame_rgb1)
-        cv2.imshow("2", mirror_grey1)
-        cv2.waitKey()
-
+        # TODO Non-contant arguments
         self.calculatePerspectiveTransform("out1.png", "out2.png")
+        frame_rgb1 = self.transform(frame_rgb1, mirror_grey1)
+
+        # Here we select ROI
+        self.select_roi(frame_rgb1)
+        cropped_grey1 = self.crop(frame_rgb1)
+        i = 0
+
+        while(1):
+            ret_rgb, frame_rgb2 = self.__cap_rgb.read()
+            ret_grey, frame_grey2 = self.__cap_grey.read()
+
+            if(ret_rgb & ret_grey == True):
+
+                mirror_grey2 = cv2.flip(frame_grey2, 1)
+                frame_rgb2 = self.transform(frame_rgb2, mirror_grey2)
+
+                # Crop current ROI
+                cropped_rgb2 = self.crop(frame_rgb2)
+                cropped_grey2 = self.crop(mirror_grey2)
+
+                self.__C1.append(np.mean(cropped_grey2[: ,:, 1]))
+                self.__R.append(np.mean(cropped_rgb2[:, :, 0]))
+                self.__G.append(np.mean(cropped_rgb2[:, :, 1]))
+                self.__B.append(np.mean(cropped_rgb2[:, :, 2]))
+
+                i += 1
+            else:
+                break
+
+        # Smoothing
+        r = 3
+        self.__C1 = smooth(self.__C1, r)
+        self.__R = smooth(self.__R, r)
+        self.__G = smooth(self.__G, r)
+        self.__B = smooth(self.__B, r)
+
+        plt.figure(1)
+        plt.plot(self.__C1, label="pasmo szarości", color="black")
+        plt.plot(self.__R, label="pasmo czerwieni", color="red")
+        plt.plot(self.__G, label="pasmo zielone", color="green")
+        plt.plot(self.__B, label="pasmo niebieskie", color="blue")
+        plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
+                   ncol=2, mode="expand", borderaxespad=0.)
+        plt.title("Srednie wartosci z kanalow barwnych")
+        plt.show(block=True)
+
+        # dataset
+        matrix = np.zeros([len(self.__C1), 4])
+        for i in range(len(matrix)):
+            matrix[i] = [self.__C1[i], self.__R[i], self.__G[i], self.__B[i]]
+        data = np.mat(matrix)
+
+        # PCA
+        pca_components = 4
+        pca = decomposition.PCA(n_components=pca_components).fit(data)
+        X_out_pca = pca.transform(data)
+
+        plt.figure(2)
+        for i in range(4):
+            plt.subplot(2,2,i+1)
+            plt.plot(X_out_pca[:,i])
+            plt.title("PCA kanał " + str(i+1))
+        plt.show(block=True)
 
 
-        ret_rgb, frame_rgb2 = self.__cap_rgb.read()
-        ret_grey, frame_grey2 = self.__cap_grey.read()
-        mirror_grey2 = cv2.flip(frame_grey1, 1)
-        self.transform(frame_rgb2, mirror_grey2)
+        # ICA
+        ica = decomposition.FastICA(n_components=4)
+        ICA_out = ica.fit(X_out_pca).transform(X_out_pca)  # Estimate the sources
+
+        plt.figure(3)
+        for i in range(4):
+            plt.subplot(2,2,i+1)
+            plt.plot(ICA_out[:,i])
+            plt.title("ICA kanał " + str(i+1))
+        plt.show(block=True)
+
+        #FFT of PCA
+        for i in range(4):
+            xf, yf = self.count_fft(X_out_pca[:, i])
+            N = len(X_out_pca[:,i])
+
+            for index, freq in enumerate(xf):
+                if (freq < 0.04 or freq > 4):
+                    yf[index] = 0
+            plt.figure(4)
+            plt.subplot(2,2,i+1)
+            plt.plot(xf, np.abs(yf[0:N // 2]))
+            plt.title("FFT pf PCA")
+
+            #IFFT
+            new_yf = ifft(yf)
+
+            plt.figure(5)
+            plt.subplot(2,2,i+1)
+            plt.plot(new_yf)
+            plt.title("IFFT pf PCA")
+
+        plt.show(block=True)
+
+        # FFT of ICA
+        for i in range(4):
+            xf, yf = self.count_fft(ICA_out[:, i])
+            N = len(ICA_out[:, i])
+
+            for index, freq in enumerate(xf):
+                if (freq < 0.04 or freq > 4):
+                    yf[index] = 0
+            plt.figure(6)
+            plt.subplot(2, 2, i + 1)
+            plt.plot(xf, np.abs(yf[0:N // 2]))
+            plt.title("FFT pf ICA")
+
+            # IFFT
+            new_yf = ifft(yf)
+
+            plt.figure(7)
+            plt.subplot(2, 2, i + 1)
+            plt.plot(new_yf)
+            plt.title("IFFT pf ICA")
+
+        plt.show(block=True)
+
+    def count_fft(self, y, time_spacing=0.04):
+
+        N = len(y)
+        yf = fft(y)
+
+        # Windowing
+        w = blackman(N)
+        ywf = fft(y * w)
+
+        T = time_spacing
+        xf = np.linspace(0.0, 1.0 / (1 * T), len(y) // 2)
+
+        return [xf, yf]
 
 
     def select_roi(self, frame):
@@ -119,13 +258,13 @@ class PulseAnalyser(object):
     def transform(self, img1, img2):
 
         img_in1 = img1
-        img_out2 = img2
+        #img_out2 = img2
 
         img_out1 = cv2.warpPerspective(img_in1, self.__h, (img_in1.shape[1], img_in1.shape[0]))
-
-        cv2.imshow("1", img_out1)
-        cv2.imshow("2", img_out2)
-        cv2.waitKey()
+        return img_out1
+        # cv2.imshow("1", img_out1)
+        # cv2.imshow("2", img_out2)
+        # cv2.waitKey()
 
 
 #############
