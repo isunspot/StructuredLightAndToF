@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 from sklearn import decomposition
 import h5py
 import math
-from scipy.fftpack import fft
+from scipy.fftpack import fft, ifft
 
 
 class StripsAnalyser(object):
@@ -70,20 +70,50 @@ class StripsAnalyser(object):
 
             # Plot
             signal_from_single_pxl = all_frames[500,600,:lastIndex]
-            plt.plot(signal_from_single_pxl)
-            plt.show(block=True)
+            # plt.plot(signal_from_single_pxl)
+            # plt.show(block=True)
 
             # Count fft
             N = len(signal_from_single_pxl)
-            T = 0.03 #
+            T = 0.03
 
             yf = fft(signal_from_single_pxl)
             xf = np.linspace(0.0, 1.0/(2.0*T), N//2)
 
-            plt.plot(xf, np.abs(yf[0:N//2]))
-            plt.grid()
-            plt.show(block=True)
+            min_window_freq = 0.04
+            max_window_freq = 0.5
 
+            # Windowing
+            yf_window = np.copy(yf)
+
+            for index, element in enumerate(xf):
+                if element < min_window_freq or element > max_window_freq:
+                    yf_window[index] = 0
+
+            # IFFT
+            new_ifft = ifft(yf_window)
+
+            # PHASE CALCULATING
+            arg = np.divide(new_ifft.imag, new_ifft.real)
+            phase = np.arctan(arg)
+
+            # PLOTTING
+            plt.subplot(2,3,1)
+            plt.plot(signal_from_single_pxl)
+
+            plt.subplot(2, 3, 2)
+            plt.plot(xf, np.abs(yf[0:len(signal_from_single_pxl) // 2]))
+
+            plt.subplot(2, 3, 3)
+            plt.plot(xf, np.abs(yf_window[0:len(signal_from_single_pxl) // 2]))
+
+            plt.subplot(2, 3, 4)
+            plt.plot(new_ifft)
+
+            plt.subplot(2, 3, 5)
+            plt.plot(phase)
+
+            plt.show()
 
         else:
             print("Coś się nie udało :(")
@@ -91,7 +121,7 @@ class StripsAnalyser(object):
 
 
 filename = "ramka_16_pion_1.avi"
-filepath_avi = os.path.abspath("C:\\Users\\ImioUser\\Desktop\\K&A\\SPECKLE\\paski\\" + filename)
+filepath_avi = os.path.abspath("F:\\K&A_pomiary\\2_kamery_basler_see\\paski\\" + filename)
 
 filename_save = "stereo.h5"
 
