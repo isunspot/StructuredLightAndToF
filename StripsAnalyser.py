@@ -12,15 +12,20 @@ class StripsAnalyser(object):
 
     def __init__(self):
         self.__cap = None
-        self.__all = []
+        self.__all_unwrapped = []
 
-    def save(self,filename_save):
+    def save(self, filename_save):
         with h5py.File(filename_save, 'w') as hf:
-            hf.create_dataset("all", data=self.__all)
+            hf.create_dataset("all_unwrapped", data=self.__all_unwrapped)
 
     def show(self, filename_save):
         with h5py.File(filename_save, 'r') as hf:
-            self.__all = hf['all'][:]
+            self.__all_unwrapped = hf['all_unwrapped'][:]
+
+        plt.plot(self.__all_unwrapped)
+        print(self.__all_unwrapped)
+        plt.title("phase sum")
+        plt.show(block=True)
 
     def show_and_calc_and_save(self, filepath, file_to_save):
 
@@ -33,9 +38,9 @@ class StripsAnalyser(object):
 
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-            N = 600
-            h = len(frame)
-            w = len(frame[1])
+            N = 600 # liczba ramek
+            h = len(frame) # wysokość ramki
+            w = len(frame[1]) # szerokość ramki
 
             all_frames = np.empty([h, w, N])
 
@@ -48,14 +53,18 @@ class StripsAnalyser(object):
                     break
 
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                #cv2.imshow('frame', frame)
 
                 all_frames[:,:,index] = frame
                 index += 1
 
                 k = cv2.waitKey(30) & 0xff
+
+                if k == ord('q'):
+                    break
+
                 if k == 27:
                     break
+
                 if index >= N:
                     print(frame)
                     print(all_frames[:,:,index-1])
@@ -68,63 +77,130 @@ class StripsAnalyser(object):
             self.save(file_to_save)
             self.show(file_to_save)
 
-            # Plot
-            signal_from_single_pxl = all_frames[500,600,:lastIndex]
-            # plt.plot(signal_from_single_pxl)
-            # plt.show(block=True)
 
-            # Count fft
-            N = len(signal_from_single_pxl)
-            T = 0.03
+            for row in range(h):
+                for col in range(w):
 
-            yf = fft(signal_from_single_pxl)
-            xf = np.linspace(0.0, 1.0/(2.0*T), N//2)
+                    # Plot
+                    signal_from_single_pxl = all_frames[row,col,:lastIndex]
 
-            min_window_freq = 0.04
-            max_window_freq = 0.5
+                    # Count fft
+                    N = len(signal_from_single_pxl)
+                    T = 0.03
 
-            # Windowing
-            yf_window = np.copy(yf)
+                    yf = fft(signal_from_single_pxl)
+                    xf = np.linspace(0.0, 1.0/(2.0*T), N//2)
 
-            for index, element in enumerate(xf):
-                if element < min_window_freq or element > max_window_freq:
-                    yf_window[index] = 0
 
-            # IFFT
-            new_ifft = ifft(yf_window)
+                    # Windowing
+                    min_window_freq = 0.04
+                    max_window_freq = 1.0
+                    yf_window = np.copy(yf)
 
-            # PHASE CALCULATING
-            arg = np.divide(new_ifft.imag, new_ifft.real)
-            phase = np.arctan(arg)
+                    for index, element in enumerate(xf):
+                        if element < min_window_freq or element > max_window_freq:
+                            yf_window[index] = 0
 
-            # PLOTTING
-            plt.subplot(2,3,1)
-            plt.plot(signal_from_single_pxl)
+                    # IFFT
+                    new_ifft = ifft(yf_window)
 
-            plt.subplot(2, 3, 2)
-            plt.plot(xf, np.abs(yf[0:len(signal_from_single_pxl) // 2]))
+                    # PHASE CALCULATING
+                    arg = np.copy(new_ifft)
 
-            plt.subplot(2, 3, 3)
-            plt.plot(xf, np.abs(yf_window[0:len(signal_from_single_pxl) // 2]))
+                    for index in range(len(new_ifft)):
+                        if new_ifft[index].real != 0:
+                            arg[index] = new_ifft[index].imag / new_ifft[index].real
+                        else:
+                            # TODO NAN when dividing by 0
+                            arg[index] = 0
 
-            plt.subplot(2, 3, 4)
-            plt.plot(new_ifft)
+                    arg = arg.real
 
-            plt.subplot(2, 3, 5)
-            plt.plot(phase)
+                    phase = np.arctan(arg)
+                    phase_clone = np.copy(phase)
 
-            plt.show()
+                    # UNWRAPPING
+                    unwrapped = np.unwrap(phase_clone)
+
+                    # SUM OF ALL PHASES
+                    if len(self.__all_unwrapped) == 0:
+                        self.__all_unwrapped = unwrapped
+
+                    else:
+                        self.__all_unwrapped = np.add(unwrapped, self.__all_unwrapped)
+
+
+                    # PLOTTING
+
+                    # plt.ion()
+                    #
+                    # plt.subplot(2, 3, 1)
+                    # plt.plot(np.linspace(0, len(signal_from_single_pxl), num=len(signal_from_single_pxl)), signal_from_single_pxl)
+                    # plt.title("Original signal from pxl")
+                    #
+                    # plt.subplot(2, 3, 2)
+                    # plt.plot(xf, np.abs(yf[0:len(signal_from_single_pxl) // 2]))
+                    # plt.title("FFT of original signal")
+                    #
+                    # plt.subplot(2, 3, 3)
+                    # plt.plot(xf, np.abs(yf_window[0:len(signal_from_single_pxl) // 2]))
+                    # plt.title("Filtered FFT")
+                    #
+                    # plt.subplot(2, 3, 4)
+                    # plt.plot(np.linspace(0, len(new_ifft), num=len(new_ifft)), np.abs(new_ifft))
+                    # plt.title("IFFT of filtered FFT")
+                    #
+                    # plt.subplot(2, 3, 5)
+                    # plt.plot(np.linspace(0, len(phase), num=len(phase)), phase)
+                    # plt.title("Phase")
+                    #
+                    # plt.subplot(2, 3, 6)
+                    # plt.plot(np.linspace(0, len(phase), num=len(phase)), unwrapped)
+                    # plt.title("Unwrapped")
+                    #
+                    # #plt.show(block=True)
+                    #
+                    # plt.pause(0.05)
+                    # plt.gcf().clear()
+                    #
+                    # print("SAD" + str(sum(np.abs(phase-unwrapped))))
+
+            # SAVING
+            self.save(file_to_save)
+            print("Zapisano do " + str(file_to_save))
+
+
+                # PLOTTING
+                # plt.subplot(2,3,1)
+                # plt.plot(signal_from_single_pxl)
+                #
+                # plt.subplot(2, 3, 2)
+                # plt.plot(xf, np.abs(yf[0:len(signal_from_single_pxl) // 2]))
+                #
+                # plt.subplot(2, 3, 3)
+                # plt.plot(xf, np.abs(yf_window[0:len(signal_from_single_pxl) // 2]))
+                #
+                # plt.subplot(2, 3, 4)
+                # plt.plot(new_ifft)
+                #
+                # plt.subplot(2, 3, 5)
+                # plt.plot(phase)
+                #
+                # plt.subplot(2, 3, 6)
+                # plt.plot(unwrapped)
+                # plt.show()
+                #print("SAD" + str(sum(np.abs(phase-unwrapped))))
 
         else:
             print("Coś się nie udało :(")
 
+filename = "ramka_16_pion_1_10_ramek.avi"
+#filename = "ramka_16_pion_1.avi"
+#filepath_avi = os.path.abspath("F:\\K&A_pomiary\\2_kamery_basler_see\\paski\\" + filename)
+filepath_avi = os.path.abspath("C:\\Users\\ImioUser\\Desktop\\K&A\\SPECKLE\\paski\\" + filename)
 
-
-filename = "ramka_16_pion_1.avi"
-filepath_avi = os.path.abspath("F:\\K&A_pomiary\\2_kamery_basler_see\\paski\\" + filename)
-
-filename_save = "stereo.h5"
+filename_save = "strips_16_10_ramek_pion.h5"
 
 strips = StripsAnalyser()
 strips.show_and_calc_and_save(filepath_avi, filename_save)
-#speckles_reader.show(filename_save)
+strips.show(filename_save)
