@@ -36,7 +36,7 @@ class SpecklesReader(object):
                                 maxLevel=2,
                                 criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
 
-        # Create some random colors
+        # Create some random_points.py colors
         self.__color = np.random.randint(0, 255, (100, 3))
 
     def save(self,filename_save):
@@ -181,12 +181,12 @@ class SpecklesReader(object):
 
 
 #
-# filename = "ramka_100.avi"
-# filepath_avi = os.path.abspath("C:\\Users\\ImioUser\\Desktop\\K&A\\2_kamery_basler_see\\100cm\\" + filename)
-filename = "4_oddech_przykrywka.avi"
-filepath_avi = os.path.abspath("C:\\Users\\ImioUser\\Desktop\\K&A\\pylon_spekle\\" + filename)
-filename_save = "stereo.h5"
+filename = "K_1_5_stereo.avi"
+filepath_avi = os.path.abspath("C:\\Users\\ImioUser\\Desktop\\K&A\\duo\\pomiar_odleglosci\\" + filename)
+#filepath_avi = os.path.abspath("C:\\Users\\ImioUser\\Desktop\\K&A\\2_kamery_basler_see\\225cm\\See\\" + filename)
+
+filename_save = "duo1.h5"
 speckles_reader = SpecklesReader()
 
 speckles_reader.show_and_calc_and_save(filepath_avi, filename_save)
-#speckles_reader.show(filename_save)
+speckles_reader.show(filename_save)

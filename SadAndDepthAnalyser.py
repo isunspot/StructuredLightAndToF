@@ -170,19 +170,37 @@ class SadAndDepthAnalyser(object):
 
     def plot_sad(self):
             plt.figure()
-            plt.subplot(2,2,1)
+            #plt.subplot(2,2,1)
             plt.plot(self.__allSad)
             plt.title("SAD")
+
+            plt.show()
 
             fft_all = self.count_fft()
             xf = fft_all[0]
             yf = fft_all[1]
 
             N = len(self.__allSad)
-            plt.subplot(2,2,2)
-            plt.semilogy(xf, np.abs(yf[0:N//2]))
-            #2.0/N*np.abs(yf[0:N//2]))
+            M = len(xf)
+            #plt.subplot(2,2,2)
+            plt.plot(xf[0:M//2], np.abs(yf[0:N//4]))
+            plt.title("FFT")
 
+            plt.show()
+
+            for index, freq in enumerate(xf):
+                if (freq < 0.03 or freq > 1):
+                    yf[index] = 0
+
+            #plt.subplot(2, 2, 3)
+            plt.plot(xf[0:M//2], np.abs(yf[0:N//4]))
+            plt.title("Odfiltowane FFT")
+
+            plt.show()
+
+            #plt.subplot(2, 2, 4)
+            plt.plot(ifft(yf))
+            plt.title("Odfiltowany sygnał")
 
             plt.show()
 
@@ -197,9 +215,10 @@ class SadAndDepthAnalyser(object):
             plt.show()
 
 
-filename = "ramka_100.avi"
-filepath_avi = os.path.abspath("C:\\Users\\ImioUser\\Desktop\\K&A\\2_kamery_basler_see\\100cm\\BaslerUSB\\" + filename)
+filename = "4_oddech_przykrywka.avi"
+#filepath_avi = os.path.abspath("C:\\Users\\ImioUser\\Desktop\\K&A\\pylon_spekle\\" + filename)
 
+#filepath_avi = os.path.abspath("C:\\Users\\ImioUser\\Desktop\\K&A\\2_kamery_basler_see\\100cm\\BaslerUSB\\" + filename)
 
 sad_reader = SadAndDepthAnalyser()
 sad_reader.calc(filepath_avi)

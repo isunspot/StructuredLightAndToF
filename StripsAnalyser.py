@@ -6,6 +6,7 @@ from sklearn import decomposition
 import h5py
 import math
 from scipy.fftpack import fft, ifft
+import random_points as rp
 
 
 class StripsAnalyser(object):
@@ -22,9 +23,19 @@ class StripsAnalyser(object):
         with h5py.File(filename_save, 'r') as hf:
             self.__all_unwrapped = hf['all_unwrapped'][:]
 
+        plt.subplot(1,2,1)
         plt.plot(self.__all_unwrapped)
         print(self.__all_unwrapped)
-        plt.title("phase sum")
+        plt.title("Unwrapped sum of phases")
+        plt.xlabel("[n]")
+
+        plt.subplot(1,2,2)
+        N = len(self.__all_unwrapped)
+        T = 0.03
+        freq = np.linspace(1, 1/(2*T), N//2 )
+        plt.plot(freq, np.abs(fft(self.__all_unwrapped[0:N//2])))
+        plt.title("FFT of unwrapped sum of phases")
+        plt.xlabel("f[Hz]")
         plt.show(block=True)
 
     def show_and_calc_and_save(self, filepath, file_to_save):
@@ -71,26 +82,21 @@ class StripsAnalyser(object):
                     break
 
             lastIndex = index - 1
-
             cv2.destroyAllWindows()
             self.__cap.release()
-            self.save(file_to_save)
-            self.show(file_to_save)
 
+            random_points = rp.random_points(number_of_points=10, max1=h, mu1=0.5*h, sigma1=h*0.1, max2=w, mu2=0.5*w, sigma2=w*0.1)
 
-            for row in range(h):
-                for col in range(w):
+            for point in random_points:
 
-                    # Plot
-                    signal_from_single_pxl = all_frames[row,col,:lastIndex]
+                    signal_from_single_pxl = all_frames[500, 600, :lastIndex]
 
-                    # Count fft
+                    # FFT
                     N = len(signal_from_single_pxl)
                     T = 0.03
 
                     yf = fft(signal_from_single_pxl)
                     xf = np.linspace(0.0, 1.0/(2.0*T), N//2)
-
 
                     # Windowing
                     min_window_freq = 0.04
@@ -129,7 +135,6 @@ class StripsAnalyser(object):
                     else:
                         self.__all_unwrapped = np.add(unwrapped, self.__all_unwrapped)
 
-
                     # PLOTTING
 
                     # plt.ion()
@@ -165,42 +170,23 @@ class StripsAnalyser(object):
                     #
                     # print("SAD" + str(sum(np.abs(phase-unwrapped))))
 
+            #PLOT ALL POINTS ON ONE FRAME
+
             # SAVING
             self.save(file_to_save)
             print("Zapisano do " + str(file_to_save))
 
-
-                # PLOTTING
-                # plt.subplot(2,3,1)
-                # plt.plot(signal_from_single_pxl)
-                #
-                # plt.subplot(2, 3, 2)
-                # plt.plot(xf, np.abs(yf[0:len(signal_from_single_pxl) // 2]))
-                #
-                # plt.subplot(2, 3, 3)
-                # plt.plot(xf, np.abs(yf_window[0:len(signal_from_single_pxl) // 2]))
-                #
-                # plt.subplot(2, 3, 4)
-                # plt.plot(new_ifft)
-                #
-                # plt.subplot(2, 3, 5)
-                # plt.plot(phase)
-                #
-                # plt.subplot(2, 3, 6)
-                # plt.plot(unwrapped)
-                # plt.show()
-                #print("SAD" + str(sum(np.abs(phase-unwrapped))))
-
         else:
             print("Coś się nie udało :(")
 
-filename = "ramka_16_pion_1_10_ramek.avi"
-#filename = "ramka_16_pion_1.avi"
+#filename = "ramka_16_pion_1_10_ramek.avi"
+filename = "ramka_16_pion_1.avi"
 #filepath_avi = os.path.abspath("F:\\K&A_pomiary\\2_kamery_basler_see\\paski\\" + filename)
 filepath_avi = os.path.abspath("C:\\Users\\ImioUser\\Desktop\\K&A\\SPECKLE\\paski\\" + filename)
 
-filename_save = "strips_16_10_ramek_pion.h5"
+filename_save = "strips_16_one_point.h5"
 
 strips = StripsAnalyser()
 strips.show_and_calc_and_save(filepath_avi, filename_save)
+
 strips.show(filename_save)

@@ -41,7 +41,7 @@ class SpecklesReader(object):
                                 maxLevel=2,
                                 criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
 
-        # Create some random colors
+        # Create some random_points.py colors
         self.__color = np.random.randint(0, 255, (100, 3))
 
     def save(self,filename_save):

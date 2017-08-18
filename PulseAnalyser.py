@@ -198,7 +198,7 @@ class PulseAnalyser(object):
         ywf = fft(y * w)
 
         T = time_spacing
-        xf = np.linspace(0.0, 1.0 / (1 * T), len(y) // 2)
+        xf = np.linspace(0.0, 1.0 / (2 * T), len(y) // 2)
 
         return [xf, yf]
 
